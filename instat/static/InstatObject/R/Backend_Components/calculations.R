@@ -466,11 +466,15 @@ DataBook$set("public", "apply_instat_calculation", function(calc, curr_data_list
   else if(calc$type == "by") {
     # link unchanged
     curr_data_list[[c_data_label]] <- curr_data_list[[c_data_label]] %>% dplyr::group_by_(.dots = col_names_exp, add = TRUE)
+    # possible change using new NSE
+    # curr_data_list[[c_data_label]] <- curr_data_list[[c_data_label]] %>% dplyr::group_by(!!! rlang::syms(as.character(calc$calculated_from)), add = TRUE, .drop = FALSE)
   }
   # This type is sorting the data
   # The rows are now in a different order so a merge is required
   else if(calc$type == "sort") {
     curr_data_list[[c_data_label]] <- curr_data_list[[c_data_label]] %>% dplyr::arrange_(.dots = col_names_exp)
+    # possible change using new NSE
+    # curr_data_list[[c_data_label]] <- curr_data_list[[c_data_label]] %>% dplyr::arrange(!!! rlang::syms(as.character(calc$calculated_from)))
     curr_data_list[[c_has_filter_label]] <- TRUE
   }
   # This type is filtering the data
@@ -479,6 +483,8 @@ DataBook$set("public", "apply_instat_calculation", function(calc, curr_data_list
   else if(calc$type == "filter") {
     curr_data_list[[c_data_label]] <- curr_data_list[[c_data_label]] %>% dplyr::filter_(.dots = as.formula(paste0("~", calc$function_exp)))
     curr_data_list[[c_has_filter_label]] <- TRUE
+    # possible change using new NSE
+    # curr_data_list[[c_data_label]] <- curr_data_list[[c_data_label]] %>% dplyr::filter(!! rlang::parse_expr(calc$function_exp), .preserve = TRUE)
   }
   # This type is when there is no main calculation but some sub_calculations
   # There is no change to the data
