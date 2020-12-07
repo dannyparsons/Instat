@@ -1536,7 +1536,69 @@ climatic_details <- function(data, date, elements = ..., stations,
 slope <- function(y, x) {
   x <- as.numeric(x)
   lm(y ~ x)$coefficients[2]
-
 }
 
+guess_type <- function(x, level_max = 12, month = TRUE, factor_levels = list()) {
+  UseMethod("guess_type")
+}
 
+guess_type.character <- function(x, level_max = 12, is_month = TRUE, is_letters = TRUE, factor_levels = list()) {
+  ux <- unique(na.omit(x))
+  ux_lower <- unique(tolower(ux))
+  # Will be used to check for English names and formats in case the system locale is not English
+  # and therefore e.g. month.abb is locale dependent.
+  locale_eng <- readr::locale()
+  
+  ### User defined factors
+  for(i in seq_along(factor_levels)) {
+    if (all(ux %in% factor_levels[[i]])) return(factor(x, levels = factor_levels[[i]]))
+  }
+  
+  ### Month check
+  # Could still be a month column with less than 12 unique values.
+  # Use ux_lower to allow inconsistent names e.g. "Jan" and "jan".
+  if (length(ux_lower) <= 12) {
+    if (all(ux_lower %in% tolower(month.abb))) {
+      return(factor(tolower(x), levels = tolower(month.abb), labels = month.abb))
+    } else if (all(ux_lower %in% tolower(locale_eng$date_names$mon_ab))) {
+      return(factor(tolower(x), levels = tolower(locale_eng$date_names$mon_ab), labels = locale_eng$date_names$mon_ab))
+    } else if (all(ux_lower %in% tolower(month.name))) {
+      return(factor(tolower(x), levels = tolower(month.name), labels = month.name))
+    } else if (all(ux_lower %in% tolower(locale_eng$date_names$mon))) {
+      return(factor(tolower(x), levels = tolower(locale_eng$date_names$mon), labels = locale_eng$date_names$mon))
+    }
+  }
+  ### Small number of unique values check
+  if (!is.na(level_max) && !is.null(level_max)) {
+    if (length(ux) <= level_max) return(factor(x, levels = ux))
+  }
+  x
+}
+
+guess_type.numeric <- function(x, level_max = 12, factor_levels = list()) {
+  ux <- unique(na.omit(x))
+  ux_lower <- unique(tolower(ux))
+  # Will be used to check for English names and formats in case the system locale is not English
+  # and therefore e.g. month.abb is locale dependent.
+  locale_eng <- readr::locale()
+  
+  if (!is.na(level_max) && !is.null(level_max)) {
+    if (length(ux) <= level_max) return(factor(x))
+  }
+  x
+}
+
+guess_type.data.frame <- function(x, level_max = 12, month = TRUE, factor_levels = list()) {
+  for(i in seq_along(data)) {
+    # First level of guessing by readr::parse_guess (only for character columns).
+    if(is.character(data[[i]])) {
+      data[[i]] <- readr::parse_guess(data[[i]])
+    }
+    # Second level of custom guessing (only for numeric or character columns).
+    # Assume any column that is not character or numeric should not be guessed.
+    if (is.character(data[[i]]) || is.numeric(data[[i]])) {
+      data[[i]] <- guess_type(data[[i]], level_max = level_max, month = month, factor_levels = factor_levels)
+    }
+  }
+  x
+}
